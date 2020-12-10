@@ -1,1 +1,102 @@
-test
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.0.0/dist/echarts.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jquery-csv@1.0.11/src/jquery.csv.min.js"></script>
+</head>
+
+<body>
+  <div id="main"></div>
+
+  <script type="text/javascript">
+    $(function () {
+      var allowList = ["gpp", "gcc", "go", "php", "rust", "java", "csharpcore", "python3", "yarv", "node", "fpascal", "ghc", "hipe"];
+      var file = 'https://benchmarksgame-team.pages.debian.net/benchmarksgame/data/data.csv';
+      $.get(file, function (csv) {
+        let data = $.csv.toArrays(csv);
+        let dict = new Map();
+        let dict2 = new Map();
+        let lastName = '';
+        let resultElapsedArray = [];
+        let resultMemoryArray = [];
+        data.forEach(d => {
+          if (d[0] == 'name') return;
+          if (allowList.indexOf(d[1]) < 0) return;
+          if (lastName == '') lastName = d[0];
+          if (d[0] != lastName && dict.size != 0) {
+            resultElapsedArray.push({ name: lastName + ' - 耗时', dict: new Map([...dict].sort((a, b) => a[1] - b[1])) });
+            resultMemoryArray.push({ name: lastName + ' - 内存', dict: new Map([...dict2].sort((a, b) => a[1] - b[1])) });
+            dict = new Map();
+            dict2 = new Map();
+            lastName = d[0];
+          }
+          let languageName = d[1];
+          let elapsed = d[9];
+          let memory = d[6];
+          let status = d[7];
+          if (status != 0) return;
+
+          if (!dict.has(languageName))
+            dict.set(languageName, elapsed);
+          else {
+            if (elapsed < dict.get(languageName))
+              dict.set(languageName, elapsed);
+          }
+
+          if (!dict2.has(languageName))
+            dict2.set(languageName, memory);
+          else {
+            if (memory < dict2.get(languageName))
+              dict2.set(languageName, memory);
+          }
+        })
+        resultElapsedArray.push({ name: lastName + ' - 耗时', dict: new Map([...dict].sort((a, b) => a[1] - b[1])) });
+        resultMemoryArray.push({ name: lastName + ' - 内存', dict: new Map([...dict2].sort((a, b) => a[1] - b[1])) });
+
+        resultElapsedArray.concat(resultMemoryArray).forEach((r, index) => {
+          $("#main").append("<div id=\"chart" + index + "\" style=\"width: 100%;min-width:1200px;height:500px;\"></div>");
+          let myChart = echarts.init(document.getElementById("chart" + index));
+
+          let option = {
+            title: {
+              text: r.name,
+              left: 'center'
+            },
+            xAxis: {
+              type: 'category',
+              data: [...r.dict.keys()]
+            },
+            yAxis: {
+              type: 'value'
+            },
+            grid: {
+              right: '1%',
+              left: '5%'
+            },
+            series: [{
+              data: [...r.dict.values()],
+              type: 'bar',
+              showBackground: true,
+              backgroundStyle: {
+                color: 'rgba(220, 220, 220, 0.8)'
+              },
+              label: {
+                show: true,
+                position: 'top'
+              },
+            }]
+          };
+
+          myChart.setOption(option);
+        })
+
+      })
+     });
+  </script>
+</body>
+
+</html>
+
