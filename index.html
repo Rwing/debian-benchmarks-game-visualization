@@ -53,7 +53,7 @@
 
           resultElapsedArray.forEach(r => {
             // 如果乘以10后仍小于中位数，则移除，以免影响数据观看
-            let keysArray = [...r.dict.keys];
+            let keysArray = [...r.dict.keys()];
             var middleKey = keysArray[parseInt(keysArray.length / 2)];
             keysArray.forEach(k => {
               if (r.dict.get(k) * 10 < r.dict.get(middleKey)) r.dict.delete(k);
