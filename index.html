@@ -52,11 +52,11 @@
           resultMemoryArray.push({ name: lastName + ' - 内存', dict: new Map([...dict2].sort((a, b) => a[1] - b[1])) });
 
           resultElapsedArray.forEach(r => {
-            // 如果乘以10后仍小于中位数，则移除，以免影响数据观看
+            // 如果耗时大于中位数的10倍，则移除，以免影响数据观看
             let keysArray = [...r.dict.keys()];
             var middleKey = keysArray[parseInt(keysArray.length / 2)];
             keysArray.forEach(k => {
-              if (r.dict.get(k) * 10 < r.dict.get(middleKey)) r.dict.delete(k);
+              if (r.dict.get(k) > r.dict.get(middleKey) * 10) r.dict.delete(k);
             });
           });
 
