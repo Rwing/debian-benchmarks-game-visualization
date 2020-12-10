@@ -1,0 +1,34 @@
+name: screenshot
+
+# Controls when the action will run. 
+on:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  screenshot:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v2
+      - name: screenshot-website
+        id: screenshot-website
+        uses: swinton/screenshot-website@v1.0.0
+        with:
+          # Source of the content to be captured, may be a URL or HTML content
+          source: https://rwing.github.io/debian-benchmarks-game-visualization/
+          full-page: true 
+      - run: cp ${{ steps.screenshot-website.outputs.path }} ./screenshot_$(date +'%Y%m%d').png
+      - name: commit
+        uses: EndBug/add-and-commit@v5
+        with:
+          message: "Add screentshot"
+          add: "*.png --force"
+          cwd: "./"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
