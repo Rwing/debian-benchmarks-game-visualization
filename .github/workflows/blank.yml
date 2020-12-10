@@ -24,7 +24,6 @@ jobs:
           # Source of the content to be captured, may be a URL or HTML content
           source: https://rwing.github.io/debian-benchmarks-game-visualization/
           width: 1200 
-          scale-factor: 1 
           full-page: true 
       - run: cp ${{ steps.screenshot-website.outputs.path }} ./screenshot_$(date +'%Y%m%d').png
       - name: commit
