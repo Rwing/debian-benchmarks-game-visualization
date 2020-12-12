@@ -1,106 +1,151 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8" />
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.0.0/dist/echarts.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jquery-csv@1.0.11/src/jquery.csv.min.js"></script>
-  </head>
 
-  <body>
-    <div id="main"></div>
+<head>
+  <meta charset="utf-8" />
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.0.0/dist/echarts.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jquery-csv@1.0.11/src/jquery.csv.min.js"></script>
+</head>
 
-    <script type="text/javascript">
-      $(function() {
-        var allowList = ['gpp', 'gcc', 'go', 'php', 'rust', 'java', 'csharpcore', 'python3', 'yarv', 'node', 'fpascal', 'ghc', 'hipe'];
-        var file = 'https://benchmarksgame-team.pages.debian.net/benchmarksgame/data/data.csv';
-        $.get(file, function(csv) {
-          let data = $.csv.toArrays(csv);
-          let dict = new Map();
-          let dict2 = new Map();
-          let lastName = '';
-          let resultElapsedArray = [];
-          let resultMemoryArray = [];
-          data.forEach(d => {
-            if (d[0] == 'name') return;
-            if (allowList.indexOf(d[1]) < 0) return;
-            if (lastName == '') lastName = d[0];
-            if (d[0] != lastName && dict.size != 0) {
-              resultElapsedArray.push({ name: lastName + ' - 耗时', dict: new Map([...dict].sort((a, b) => a[1] - b[1])) });
-              resultMemoryArray.push({ name: lastName + ' - 内存', dict: new Map([...dict2].sort((a, b) => a[1] - b[1])) });
-              dict = new Map();
-              dict2 = new Map();
-              lastName = d[0];
-            }
-            let languageName = d[1];
-            let elapsed = d[9];
-            let memory = d[6];
-            let status = d[7];
-            if (status != 0) return;
+<body>
+  <div id="main"></div>
 
-            if (!dict.has(languageName)) dict.set(languageName, elapsed);
+  <script type="text/javascript">
+    function generateSortedMap(sourceMap) {
+      return new Map([...sourceMap].sort((a, b) => a[1] - b[1]));
+    }
+    $(function () {
+      let allowList = new Map([
+        ['gpp', { 'friendlyName': 'C++' }],
+        ['gcc', { 'friendlyName': 'C' }],
+        ['go', { 'friendlyName': 'go' }],
+        ['php', { 'friendlyName': 'php' }],
+        ['rust', { 'friendlyName': 'rust' }],
+        ['java', { 'friendlyName': 'java' }],
+        ['csharpcore', { 'friendlyName': 'C#' }],
+        ['python3', { 'friendlyName': 'python' }],
+        ['yarv', { 'friendlyName': 'ruby' }],
+        ['node', { 'friendlyName': 'node' }],
+        ['fpascal', { 'friendlyName': 'pascal' }],
+        ['ghc', { 'friendlyName': 'haskell' }],
+        ['hipe', { 'friendlyName': 'erlang' }]
+      ]);
+      let file = 'https://benchmarksgame-team.pages.debian.net/benchmarksgame/data/data.csv';
+      $.get(file, function (csv) {
+        let data = $.csv.toArrays(csv);
+        let dictElapsed = new Map();
+        let dictMemory = new Map();
+        let dictTotalElapsed = new Map();
+        let dictTotalMemory = new Map();
+        let lastName = '';
+        let resultElapsedArray = [];
+        let resultMemoryArray = [];
+        data.forEach(d => {
+          if (d[0] == 'name') return;
+          let languageName = d[1];
+          if (!allowList.has(languageName)) return;
+          let status = d[7];
+          if (status != 0) return;
+
+          if (lastName == '') lastName = d[0];
+          if (d[0] != lastName) {
+            resultElapsedArray.push({ name: lastName + ' - 耗时', dict: generateSortedMap(dictElapsed) });
+            resultMemoryArray.push({ name: lastName + ' - 内存', dict: generateSortedMap(dictMemory) });
+            dictElapsed = new Map();
+            dictMemory = new Map();
+            lastName = d[0];
+          }
+
+          let elapsed = +d[9];
+          let memory = +d[6];
+
+          if (!dictElapsed.has(languageName)) dictElapsed.set(languageName, elapsed);
+          else {
+            if (elapsed < dictElapsed.get(languageName)) dictElapsed.set(languageName, elapsed);
+          }
+
+          if (!dictMemory.has(languageName)) dictMemory.set(languageName, memory);
+          else {
+            if (memory < dictMemory.get(languageName)) dictMemory.set(languageName, memory);
+          }
+        });
+        resultElapsedArray.push({ name: lastName + ' - 耗时', dict: generateSortedMap(dictElapsed) });
+        resultMemoryArray.push({ name: lastName + ' - 内存', dict: generateSortedMap(dictMemory) });
+
+        resultElapsedArray.forEach(r => {
+          // 如果耗时大于中位数的10倍，则移除，以免影响数据观看
+          let keysArray = [...r.dict.keys()];
+          var middleKey = keysArray[parseInt(keysArray.length / 2)];
+          keysArray.forEach(k => {
+            let base = r.dict.get(keysArray[0]);
+            let value = r.dict.get(k) / base;
+            if (!dictTotalElapsed.has(k)) dictTotalElapsed.set(k, value);
             else {
-              if (elapsed < dict.get(languageName)) dict.set(languageName, elapsed);
+              dictTotalElapsed.set(k, dictTotalElapsed.get(k) + value);
             }
 
-            if (!dict2.has(languageName)) dict2.set(languageName, memory);
-            else {
-              if (memory < dict2.get(languageName)) dict2.set(languageName, memory);
-            }
-          });
-          resultElapsedArray.push({ name: lastName + ' - 耗时', dict: new Map([...dict].sort((a, b) => a[1] - b[1])) });
-          resultMemoryArray.push({ name: lastName + ' - 内存', dict: new Map([...dict2].sort((a, b) => a[1] - b[1])) });
-
-          resultElapsedArray.forEach(r => {
-            // 如果耗时大于中位数的10倍，则移除，以免影响数据观看
-            let keysArray = [...r.dict.keys()];
-            var middleKey = keysArray[parseInt(keysArray.length / 2)];
-            keysArray.forEach(k => {
-              if (r.dict.get(k) > r.dict.get(middleKey) * 10) r.dict.delete(k);
-            });
-          });
-
-          resultElapsedArray.concat(resultMemoryArray).forEach((r, index) => {
-
-            $('#main').append('<div id="chart' + index + '" style="width: 100%;min-width:1200px;height:500px;"></div>');
-            let myChart = echarts.init(document.getElementById('chart' + index));
-
-            let option = {
-              title: {
-                text: r.name,
-                left: 'center',
-              },
-              xAxis: {
-                type: 'category',
-                data: [...r.dict.keys()],
-              },
-              yAxis: {
-                type: 'value',
-              },
-              grid: {
-                right: '1%',
-                left: '5%',
-              },
-              series: [
-                {
-                  data: [...r.dict.values()],
-                  type: 'bar',
-                  showBackground: true,
-                  backgroundStyle: {
-                    color: 'rgba(220, 220, 220, 0.8)',
-                  },
-                  label: {
-                    show: true,
-                    position: 'top',
-                  },
-                },
-              ],
-            };
-
-            myChart.setOption(option);
+            if (r.dict.get(k) > r.dict.get(middleKey) * 10) r.dict.delete(k);
           });
         });
+
+        resultMemoryArray.forEach(r => {
+          let keysArray = [...r.dict.keys()];
+          keysArray.forEach(k => {
+            let base = r.dict.get(keysArray[0]);
+            let value = r.dict.get(k) / base;
+            if (!dictTotalMemory.has(k)) dictTotalMemory.set(k, value);
+            else {
+              dictTotalMemory.set(k, dictTotalMemory.get(k) + value);
+            }
+          });
+        });
+
+        resultElapsedArray.unshift({ name: ' 合计 - 耗时', dict: generateSortedMap(dictTotalElapsed) });
+        resultMemoryArray.unshift({ name: ' 合计 - 内存', dict: generateSortedMap(dictTotalMemory) });
+
+        resultElapsedArray.concat(resultMemoryArray).forEach((r, index) => {
+
+          $('#main').append('<div id="chart' + index + '" style="width: 100%;min-width:1200px;height:500px;"></div>');
+          let myChart = echarts.init(document.getElementById('chart' + index));
+          let keys = [...r.dict.keys()];
+          let option = {
+            title: {
+              text: r.name,
+              left: 'center',
+            },
+            xAxis: {
+              type: 'category',
+              data: keys.map(a => allowList.get(a).friendlyName),
+            },
+            yAxis: {
+              type: 'value',
+            },
+            grid: {
+              right: '1%',
+              left: '5%',
+            },
+            series: [
+              {
+                data: [...r.dict.values()].map(v => v.toFixed(3)),
+                type: 'bar',
+                showBackground: true,
+                backgroundStyle: {
+                  color: 'rgba(220, 220, 220, 0.8)',
+                },
+                label: {
+                  show: true,
+                  position: 'top',
+                },
+              },
+            ],
+          };
+
+          myChart.setOption(option);
+        });
       });
-    </script>
-  </body>
+    });
+  </script>
+</body>
+
 </html>
